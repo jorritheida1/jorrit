@@ -1,13 +1,20 @@
-with orders as (
+with 
+
+source as (
+
+    select * from {{ source('jaffle_shop', 'jaffle_shop_orders') }}
+
+),
+
+staged as (
 
     select
         id as order_id,
         user_id as customer_id,
         order_date,
         status
-
-    from default.jaffle_shop_orders
+    from source
 
 )
 
-select * from orders
+select * from staged
