@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: jaffle_shop
+    database: hive_metastore
+    schema: default
+    tables:
+      - name: stripe_payments
