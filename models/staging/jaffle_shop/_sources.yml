@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: jaffle_shop_2
+    database: hive_metastore
+    schema: default
+    tables:
+      - name: jaffle_shop_customers
+      - name: jaffle_shop_orders

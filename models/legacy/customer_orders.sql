@@ -9,13 +9,13 @@ select
     round(amount/100.0,2) as order_value_dollars,
     orders.status as order_status,
     payments.status as payment_status
-from default.jaffle_shop_orders as orders
+from {{ source('jaffle_shop_2', 'jaffle_shop_orders')  }} as orders
 
 join (
       select 
         first_name || ' ' || last_name as name, 
         * 
-      from default.jaffle_shop_customers
+      from {{ source('jaffle_shop_2', 'jaffle_shop_customers')  }}
 ) customers
 on orders.user_id = customers.id
 
@@ -39,18 +39,18 @@ join (
       select 
         row_number() over (partition by user_id order by order_date, id) as user_order_seq,
         *
-      from default.jaffle_shop_orders
+      from {{ source('jaffle_shop_2', 'jaffle_shop_orders')  }}
     ) a
 
     join ( 
       select 
         first_name || ' ' || last_name as name, 
         * 
-      from default.jaffle_shop_customers
+      from {{ source('jaffle_shop_2', 'jaffle_shop_customers')  }}
     ) b
     on a.user_id = b.id
 
-    left outer join default.stripe_payments c
+    left outer join {{ source('stripe_2', 'stripe_payments')  }} c
     on a.id = c.orderid
 
     where a.status NOT IN ('pending') and c.status != 'fail'
@@ -60,7 +60,7 @@ join (
 ) customer_order_history
 on orders.user_id = customer_order_history.customer_id
 
-left outer join default.stripe_payments payments
+left outer join {{ source('stripe_2', 'stripe_payments')  }} payments
 on orders.id = payments.orderid
 
 where payments.status != 'fail'
