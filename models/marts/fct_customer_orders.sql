@@ -12,77 +12,84 @@ customers as (
 
 ),
 
-customer_order_history as (  -- combines tables a, b and payments as customer_order_history, where it filters statusses and calculates new metrics 
+-- Add a new CTE to aggregate order_ids per customer_id
+order_ids_per_customer as (
+    select
+        customer_id,
+        collect_list(distinct order_id) as customer_order_ids
+    from orders
+    group by customer_id
+),
+
+------
+customer_orders as (
 
     select
 
-        customers.customer_id,
+        orders.*,
         customers.name,
         customers.surname,
         customers.givenname,
 
-        min(orders.order_date) as first_order_date,
+        --- customer level aggregations
+        min(orders.order_date) over(
+            partition by orders.customer_id
+        ) as customer_first_order_date,
 
-        min(orders.valid_order_date) as first_non_returned_order_date,
+        min(orders.valid_order_date) over(
+            partition by orders.customer_id
+        ) as customer_first_non_returned_order_date,
 
-        max(orders.valid_order_date) as most_recent_non_returned_order_date,
+        max(orders.valid_order_date) over(
+            partition by orders.customer_id
+        ) as customer_most_recent_non_returned_order_date,
 
-        coalesce(max(orders.user_order_seq), 0) as order_count,
+        count(*) over(
+            partition by orders.customer_id
+        ) as customer_order_count,
 
-        coalesce(count(case
-            when orders.valid_order_date is not null 
-            then 1 
-        end),0) as non_returned_order_count,
+        sum(nvl2(orders.valid_order_date, 1, 0)) over(
+            partition by orders.customer_id
+        ) as customer_non_returned_order_count,
 
-        sum(case
-            when orders.valid_order_date is not null
-            then orders.order_value_dollars else 0
-        end) as total_lifetime_value,
-
-        sum(case
-            when orders.order_status not in ('returned', 'return_pending')
-            then orders.order_value_dollars else 0
-        end) 
-        / nullif(count(case 
-            when orders.valid_order_date is not null
-            then 1
-        end),0) as avg_non_returned_order_value,
-
-        array_agg(distinct orders.order_id) as order_ids
-
+        sum(nvl2(orders.valid_order_date, orders.order_value_dollars, 0)) over(
+            partition by orders.customer_id
+        ) as customer_total_lifetime_value
+    
     from orders
-
-    join customers
-    on orders.customer_id = customers.customer_id
-
-    group by customers.customer_id, customers.name, customers.surname, customers.givenname
+    inner join customers
+        on orders.customer_id = customers.customer_id
 
 ),
 
-    -- Final CTEs 
-final as (  -- combines orders customers and customer_order_history
+add_avg_order_values as (
 
     select
+        *,
+        customer_total_lifetime_value / customer_non_returned_order_count 
+        as customer_avg_non_returned_order_value
 
-        orders.order_id,
-        orders.customer_id,
-        customers.surname,
-        customers.givenname,
-        first_order_date,
-        order_count,
-        total_lifetime_value,
-        orders.order_value_dollars,
-        orders.order_status,
-        orders.payment_status
+    from customer_orders
+),
 
-    from orders
-
-    join customers 
-    on orders.customer_id = customers.customer_id
-
-    join customer_order_history
-    on orders.customer_id = customer_order_history.customer_id
-
+    -- Final CTEs 
+final as (
+    select
+        add_avg_order_values.order_id,
+        add_avg_order_values.customer_id,
+        add_avg_order_values.surname,
+        add_avg_order_values.givenname,
+        add_avg_order_values.customer_first_order_date as first_order_date,
+        add_avg_order_values.customer_order_count as order_count,
+        add_avg_order_values.customer_total_lifetime_value as total_lifetime_value,
+        add_avg_order_values.order_value_dollars,
+        add_avg_order_values.order_status,
+        add_avg_order_values.payment_status,
+        order_ids_per_customer.customer_order_ids as customer_order_ids
+    from add_avg_order_values
+    -- Join order_ids_per_customer to get customer_order_ids
+    inner join order_ids_per_customer
+        on add_avg_order_values.customer_id = order_ids_per_customer.customer_id
 )
 
 -- Simple Select Statement
