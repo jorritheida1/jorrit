@@ -12,7 +12,9 @@ customers as (
 
 ),
 
--- Add a new CTE to aggregate order_ids per customer_id
+-- Add a new CTE to aggregate order_ids per customer_id (indicates that the code tries to use a window function with the DISTINCT keyword, which is currently not supported in Databricks. That's why we need to work around it and create a CTE first)
+-- (we created a separate CTE called order_ids_per_customer to aggregate the order_ids for each customer. This CTE groups the orders by customer_id and collects the distinct order_ids using the collect_list function. 
+-- Then, in the final CTE, we join this order_ids_per_customer CTE with the previous CTE using the customer_id column.)
 order_ids_per_customer as (
     select
         customer_id,
