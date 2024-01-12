@@ -1,6 +1,16 @@
 packages:
 - package: dbt-labs/audit_helper
   version: 0.9.0
+- package: fivetran/github
+  version: 0.7.0
 - package: dbt-labs/dbt_utils
   version: 1.1.1
-sha1_hash: 5f6aef3de71151054786060b5c67007fe6341c3f
+- package: gitlabhq/snowflake_spend
+  version: 1.3.0
+- package: fivetran/github_source
+  version: 0.7.1
+- package: fivetran/fivetran_utils
+  version: 0.4.10
+- package: dbt-labs/spark_utils
+  version: 0.3.0
+sha1_hash: b93ea0bc9865de452b707b8f67aa35b475307948
